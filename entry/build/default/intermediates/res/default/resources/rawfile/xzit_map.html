@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>XZIT Kampus Xaritasi</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #map { width: 100%; height: 100%; overflow: hidden; }
+
+    .xzit-marker {
+      display: flex; align-items: center; justify-content: center;
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.95);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.30);
+      font-size: 15px; font-weight: 700; color: #fff;
+      font-family: -apple-system, 'Segoe UI', 'Noto Sans', sans-serif;
+      cursor: pointer; transition: transform 0.15s ease;
+    }
+    .xzit-marker:active { transform: scale(0.92); }
+
+    .xzit-popup {
+      font-family: -apple-system, 'Segoe UI', 'Noto Sans', sans-serif;
+      min-width: 210px; max-width: 265px;
+      border-radius: 10px; overflow: hidden;
+    }
+    .popup-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px 8px; color: #fff;
+    }
+    .popup-header-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+    .popup-header-title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+    .popup-body {
+      padding: 9px 12px 11px; background: #fff;
+      border-top: 1px solid rgba(0,0,0,0.07);
+    }
+    .popup-zh { font-size: 13px; color: #333; font-weight: 500; margin-bottom: 1px; }
+    .popup-en { font-size: 11px; color: #888; margin-bottom: 7px; }
+    .popup-divider { height: 1px; background: #eee; margin: 6px 0; }
+    .popup-info { font-size: 11.5px; color: #555; line-height: 1.5; }
+    .popup-info span { display: inline-block; margin-right: 4px; }
+
+    .leaflet-popup-content-wrapper {
+      padding: 0; border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.22); overflow: hidden;
+    }
+    .leaflet-popup-content { margin: 0; line-height: 1; }
+    .leaflet-popup-tip-container { display: none; }
+    .leaflet-popup-close-button {
+      color: rgba(255,255,255,0.85) !important;
+      font-size: 18px !important; top: 7px !important; right: 8px !important;
+    }
+    .leaflet-control-attribution {
+      font-size: 10px; background: rgba(255,255,255,0.75) !important;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+  /* ══════════════════════════════════════════════════════════
+     WGS-84 → GCJ-02 Converter (required for Gaode tiles)
+  ══════════════════════════════════════════════════════════ */
+  function transformLat(x, y) {
+    var r = -100+2*x+3*y+0.2*y*y+0.1*x*y+0.2*Math.sqrt(Math.abs(x));
+    r += (20*Math.sin(6*x*Math.PI)+20*Math.sin(2*x*Math.PI))*2/3;
+    r += (20*Math.sin(y*Math.PI)+40*Math.sin(y/3*Math.PI))*2/3;
+    r += (160*Math.sin(y/12*Math.PI)+320*Math.sin(y*Math.PI/30))*2/3;
+    return r;
+  }
+  function transformLng(x, y) {
+    var r = 300+x+2*y+0.1*x*x+0.1*x*y+0.1*Math.sqrt(Math.abs(x));
+    r += (20*Math.sin(6*x*Math.PI)+20*Math.sin(2*x*Math.PI))*2/3;
+    r += (20*Math.sin(x*Math.PI)+40*Math.sin(x/3*Math.PI))*2/3;
+    r += (150*Math.sin(x/12*Math.PI)+300*Math.sin(x/30*Math.PI))*2/3;
+    return r;
+  }
+  function wgs84ToGcj02(lat, lng) {
+    var a = 6378245.0, ee = 0.00669342162296594323;
+    var dLat = transformLat(lng - 105.0, lat - 35.0);
+    var dLng = transformLng(lng - 105.0, lat - 35.0);
+    var radLat = lat / 180.0 * Math.PI;
+    var magic = Math.sin(radLat);
+    magic = 1 - ee * magic * magic;
+    var sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+    dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI);
+    return [lat + dLat, lng + dLng];
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     XZIT Campus Buildings — WGS-84 coordinates
+  ══════════════════════════════════════════════════════════ */
+  var BUILDINGS = [
+    { id: 0, uz: 'Kutubxona', zh: '逸夫图书馆', en: 'Library', icon: '📚',
+      info: '08:00–22:00 · 1200 o\'rindiq',
+      lat: 34.192276, lng: 117.294948, color: '#1565C0' },
+    { id: 1, uz: 'Talabalar yotoqxonasi', zh: '留学生公寓', en: "Int'l Student Dorm", icon: '🏠',
+      info: '24/7 · Wi-Fi · Lift',
+      lat: 34.195349, lng: 117.301194, color: '#6A1B9A' },
+    { id: 2, uz: "1-o'quv binosi", zh: '敬中楼', en: 'Teaching Bldg 1', icon: '①',
+      info: 'Darslar: 08:00–21:40',
+      lat: 34.188629, lng: 117.303050, color: '#E65100' },
+    { id: 3, uz: "2-oshxona", zh: '第二餐厅', en: 'Teaching Bldg 2', icon: '🍜',
+      info: '07:00–19:30 · Halol',
+      lat: 34.194765, lng: 117.297581, color: '#EF6C00' },
+    { id: 4, uz: "3-oshxona", zh: '第三餐厅', en: '3rd canteen', icon: '🍜',
+      info: '07:00–19:30 · Halol',
+      lat: 34.191411, lng: 117.306540, color: '#F57C00' },
+    { id: 5, uz: "4-oshxona", zh: '第四餐厅', en: '4th canteen', icon: '🍜',
+      info: '07:00–19:30 · Halol',
+      lat: 34.192476, lng: 117.303386, color: '#FB8C00' },
+    { id: 6, uz: '1-oshxona', zh: '第一餐厅', en: '1st canteen', icon: '🍜',
+      info: '07:00–19:30 · Halol',
+      lat: 34.195919, lng: 117.291745, color: '#2E7D32' },
+    { id: 7, uz: 'Sport binosi', zh: '体育馆', en: 'Sports Center', icon: '🏀',
+      info: '07:00–22:00 · Bepul',
+      lat: 34.188642, lng: 117.307248, color: '#00695C' },
+    { id: 8, uz: 'Shifoxona', zh: '校医院', en: 'Campus Hospital', icon: '🏥',
+      info: 'Du–Ju 08:00–17:00',
+      lat: 34.195014, lng: 117.297678, color: '#D32F2F' },
+    { id: 9, uz: "Moliya bo'limi", zh: '财务处', en: 'Finance Office', icon: '💰',
+      info: "To'lov va yotoqxona to'lovi",
+      lat: 34.192840, lng: 117.292260, color: '#5D4037' },
+    { id: 10, uz: 'Viza idorasi', zh: '出入境管理处', en: 'Visa Office (PSB)', icon: '🛂',
+      info: 'Yashash ruxsati · Viza uzaytirish\nDu–Ju 09:00–17:00',
+      lat: 34.266483, lng: 117.144250, color: '#1A237E' }
+  ];
+
+  /* ══════════════════════════════════════════════════════════
+     Map — Gaode tiles (works in China, no API key)
+  ══════════════════════════════════════════════════════════ */
+  var center = wgs84ToGcj02(34.192, 117.299);
+  var map = L.map('map', {
+    center: center,
+    zoom: 16,
+    zoomControl: true,
+    attributionControl: true,
+    tap: false
+  });
+
+  L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+    maxZoom: 18,
+    minZoom: 14,
+    attribution: '© AutoNavi (高德)',
+    subdomains: '1234'
+  }).addTo(map);
+
+  /* ══════════════════════════════════════════════════════════
+     Campus boundary (converted to GCJ-02)
+  ══════════════════════════════════════════════════════════ */
+  var sw = wgs84ToGcj02(34.186, 117.288);
+  var ne = wgs84ToGcj02(34.198, 117.310);
+  var campusBounds = [
+    [ne[0], sw[1]], [ne[0], ne[1]],
+    [sw[0], ne[1]], [sw[0], sw[1]]
+  ];
+  L.polygon(campusBounds, {
+    color: '#1565C0', weight: 2, opacity: 0.4,
+    fillColor: '#1565C0', fillOpacity: 0.04, dashArray: '6 4'
+  }).addTo(map).bindTooltip('XZIT Kampusi · 徐州工程学院', {
+    permanent: false, direction: 'top'
+  });
+
+  /* ══════════════════════════════════════════════════════════
+     Marker helpers
+  ══════════════════════════════════════════════════════════ */
+  function makeIcon(color, label) {
+    return L.divIcon({
+      className: '',
+      html: '<div class="xzit-marker" style="background:' + color + '">' + label + '</div>',
+      iconSize: [38, 38], iconAnchor: [19, 19], popupAnchor: [0, -22]
+    });
+  }
+
+  function makePopup(b) {
+    var infoLines = b.info.split('\n').map(function(l) {
+      return '<span>' + l + '</span>';
+    }).join('<br>');
+    return '<div class="xzit-popup">'
+      + '<div class="popup-header" style="background:' + b.color + '">'
+      + '<span class="popup-header-icon">' + b.icon + '</span>'
+      + '<span class="popup-header-title">' + b.uz + '</span>'
+      + '</div><div class="popup-body">'
+      + '<div class="popup-zh">' + b.zh + '</div>'
+      + '<div class="popup-en">' + b.en + '</div>'
+      + '<div class="popup-divider"></div>'
+      + '<div class="popup-info">' + infoLines + '</div>'
+      + '</div></div>';
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     Create markers (convert each to GCJ-02 for Gaode tiles)
+  ══════════════════════════════════════════════════════════ */
+  var markers = BUILDINGS.map(function(b) {
+    var pos = wgs84ToGcj02(b.lat, b.lng);
+    var marker = L.marker(pos, { icon: makeIcon(b.color, b.icon) })
+      .addTo(map)
+      .bindPopup(makePopup(b), { maxWidth: 280, minWidth: 220 });
+    marker.on('click', function() {
+      try {
+        window.xzit.onMarkerClick(JSON.stringify({
+          id: b.id, uz: b.uz, zh: b.zh, en: b.en
+        }));
+      } catch (e) {}
+    });
+    return marker;
+  });
+
+  /* ══════════════════════════════════════════════════════════
+     API for ArkTS — focus on a building
+  ══════════════════════════════════════════════════════════ */
+  function focusBuilding(idx) {
+    if (idx < 0 || idx >= markers.length) return;
+    var b = BUILDINGS[idx];
+    var pos = wgs84ToGcj02(b.lat, b.lng);
+    map.flyTo(pos, 18, { duration: 0.8 });
+    setTimeout(function() { markers[idx].openPopup(); }, 850);
+  }
+
+  function getBuildingList() {
+    return JSON.stringify(BUILDINGS.map(function(b) {
+      return { id: b.id, uz: b.uz, zh: b.zh, color: b.color, icon: b.icon };
+    }));
+  }
+
+  setTimeout(function() { map.invalidateSize(); }, 250);
+  window.addEventListener('resize', function() { map.invalidateSize(); });
+</script>
+</body>
+</html>

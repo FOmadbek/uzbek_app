@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "模块描述"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "溪村APP"
+    },
+    {
+      "name": "bottom_text_map",
+      "value": "地图浏览"
+    },
+    {
+      "name": "bottom_text_zones",
+      "value": "区域导览"
+    },
+    {
+      "name": "bottom_text_trains",
+      "value": "小火车"
+    }
+  ]
+}

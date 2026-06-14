@@ -1,0 +1,32 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "XZIT Talaba Qo'llanmasi"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "XZIT xalqaro talabalar uchun qo'llanma"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "XZIT Qo'llanma"
+    },
+    {
+      "name": "bottom_text_map",
+      "value": "Xarita"
+    },
+    {
+      "name": "bottom_text_zones",
+      "value": "Viza"
+    },
+    {
+      "name": "bottom_text_trains",
+      "value": "Jadval"
+    },
+    {
+      "name": "bottom_text_about",
+      "value": "Haqida"
+    }
+  ]
+}
