@@ -3,7 +3,7 @@
 > A HarmonyOS NEXT mobile guide app for Uzbek international students at Xuzhou Institute of Technology (徐州工程学院)
 
 <p align="center">
-  <img src="2.jpg" width="120" alt="XZUT Guide Icon"/>
+  <img src="2.jpg" width="360" alt="XZUT Guide Icon"/>
 </p>
 
 <p align="center">
