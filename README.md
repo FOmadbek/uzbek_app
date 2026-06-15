@@ -137,4 +137,4 @@ cd uzbek_app
 
 ## License
 
-This project is for educational purposes. Map tiles © [AutoNavi (高德)](https://www.autonavi.com/). Base template adapted from [Huawei OxHornCampus Codelab](https://gitee.com/harmonyos/codelabs).
+This project is for educational purposes. Map tiles © [AutoNavi (高德)](https://www.autonavi.com/).
